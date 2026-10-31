@@ -12,3 +12,4 @@ serviceAccount*.json
 coverage/
 playwright-report/
 test-results/
+*.tsbuildinfo
