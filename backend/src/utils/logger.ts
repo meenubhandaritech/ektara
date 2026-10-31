@@ -1,0 +1,12 @@
+type Level = 'info' | 'warn' | 'error';
+
+function log(level: Level, msg: string, meta: Record<string, unknown> = {}) {
+  // Structured JSON logs. Never pass personal data or tokens in `meta`.
+  console.log(JSON.stringify({ t: new Date().toISOString(), level, msg, ...meta }));
+}
+
+export const logger = {
+  info: (m: string, x?: Record<string, unknown>) => log('info', m, x),
+  warn: (m: string, x?: Record<string, unknown>) => log('warn', m, x),
+  error: (m: string, x?: Record<string, unknown>) => log('error', m, x),
+};

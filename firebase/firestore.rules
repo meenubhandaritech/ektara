@@ -1,0 +1,247 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.role in ['admin', 'editor'];
+    }
+
+    function validTimestamp(data, field) {
+      return !(field in data) || data[field] is timestamp;
+    }
+
+    function validUserProfile(data) {
+      return data.keys().hasOnly([
+          'displayName', 'email', 'photoURL', 'state', 'residency', 'language',
+          'onboarded', 'consentAt', 'selectedRoute', 'createdAt', 'updatedAt'
+        ])
+        && (!('displayName' in data) || data.displayName is string && data.displayName.size() <= 80)
+        && (!('email' in data) || data.email is string && data.email.size() <= 254)
+        && (!('photoURL' in data) || data.photoURL is string && data.photoURL.size() <= 2048 && data.photoURL.matches('https://.*'))
+        && (!('state' in data) || data.state is string && data.state.size() <= 60)
+        && (!('residency' in data) || data.residency in [
+          'resident-indian', 'nri', 'oci', 'foreign', 'unsure'
+        ])
+        && (!('language' in data) || data.language in ['en', 'hi'])
+        && (!('onboarded' in data) || data.onboarded is bool)
+        && (!('consentAt' in data) || data.consentAt is timestamp)
+        && (!('selectedRoute' in data) || data.selectedRoute is string && data.selectedRoute.size() <= 80)
+        && validTimestamp(data, 'createdAt')
+        && validTimestamp(data, 'updatedAt');
+    }
+
+    function validJourney(data) {
+      return data.keys().hasOnly(['route', 'answers', 'milestones', 'createdAt', 'updatedAt'])
+        && (!('route' in data) || data.route == null || data.route is string && data.route.size() <= 80)
+        && (!('answers' in data) || validAnswers(data.answers))
+        && (!('milestones' in data) || validMilestones(data.milestones))
+        && validTimestamp(data, 'createdAt')
+        && validTimestamp(data, 'updatedAt');
+    }
+
+    function validMilestones(data) {
+      return data is map
+        && data.keys().hasOnly([
+          'learn', 'route', 'requirements', 'registration', 'documents',
+          'hsr', 'referral', 'post-referral', 'post-adoption'
+        ])
+        && (!('learn' in data) || data.learn in ['not_started', 'current', 'done'])
+        && (!('route' in data) || data.route in ['not_started', 'current', 'done'])
+        && (!('requirements' in data) || data.requirements in ['not_started', 'current', 'done'])
+        && (!('registration' in data) || data.registration in ['not_started', 'current', 'done'])
+        && (!('documents' in data) || data.documents in ['not_started', 'current', 'done'])
+        && (!('hsr' in data) || data.hsr in ['not_started', 'current', 'done'])
+        && (!('referral' in data) || data.referral in ['not_started', 'current', 'done'])
+        && (!('post-referral' in data) || data['post-referral'] in ['not_started', 'current', 'done'])
+        && (!('post-adoption' in data) || data['post-adoption'] in ['not_started', 'current', 'done']);
+    }
+
+    function validAnswers(data) {
+      return data is map
+        && data.keys().hasOnly([
+          'residence', 'status', 'relationship', 'focus', 'knowsCaraCarings'
+        ])
+        && data.keys().hasAll([
+          'residence', 'status', 'relationship', 'focus', 'knowsCaraCarings'
+        ])
+        && data.residence in ['india', 'abroad', 'unsure']
+        && data.status in ['resident-indian', 'nri', 'oci', 'foreign', 'unsure']
+        && data.relationship in ['unrelated', 'relative', 'stepchild', 'unsure']
+        && data.focus in ['general', 'hama', 'unsure']
+        && data.knowsCaraCarings in ['yes', 'no', 'unsure'];
+    }
+
+    function validChecklistItem(data) {
+      return data.keys().hasOnly([
+          'title', 'category', 'description', 'sourceId', 'completed', 'notes',
+          'createdAt', 'updatedAt'
+        ])
+        && data.title is string && data.title.size() <= 160
+        && data.category is string && data.category.size() <= 60
+        && data.description is string && data.description.size() <= 1000
+        && data.sourceId is string && data.sourceId.size() <= 100
+        && data.completed is bool
+        && data.notes is string && data.notes.size() <= 1000
+        && validTimestamp(data, 'createdAt')
+        && validTimestamp(data, 'updatedAt');
+    }
+
+    function validReminder(data) {
+      return data.keys().hasOnly([
+          'title', 'description', 'dueDate', 'completed', 'createdAt', 'updatedAt'
+        ])
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 120
+        && data.description is string && data.description.size() <= 500
+        && data.dueDate is string && data.dueDate.size() == 10
+        && data.completed is bool
+        && validTimestamp(data, 'createdAt')
+        && validTimestamp(data, 'updatedAt');
+    }
+
+    function validBookmark(data) {
+      return data.keys().hasOnly(['savedAt'])
+        && data.savedAt is timestamp;
+    }
+
+    function validNote(data) {
+      return data.keys().hasOnly(['text', 'createdAt', 'updatedAt'])
+        && data.text is string && data.text.size() > 0 && data.text.size() <= 2000
+        && validTimestamp(data, 'createdAt')
+        && validTimestamp(data, 'updatedAt');
+    }
+
+    function validArticle(data) {
+      return data.keys().hasOnly([
+          'title', 'content', 'keywords', 'sourceId', 'documentName', 'section',
+          'effectiveDate', 'lastReviewed', 'reviewer', 'status', 'language',
+          'version', 'createdAt', 'updatedAt'
+        ])
+        && data.title is string && data.title.size() >= 3 && data.title.size() <= 160
+        && data.content is string && data.content.size() >= 10 && data.content.size() <= 6000
+        && data.keywords is list && data.keywords.size() <= 20
+        && data.sourceId is string && data.sourceId.size() > 0
+        && data.documentName is string && data.documentName.size() <= 200
+        && data.section is string && data.section.size() <= 120
+        && data.effectiveDate is string && data.effectiveDate.size() <= 20
+        && data.lastReviewed is string
+        && data.reviewer is string && data.reviewer.size() > 0 && data.reviewer.size() <= 80
+        && data.status in ['draft', 'published', 'archived']
+        && data.language in ['en', 'hi']
+        && data.version is int
+        && validTimestamp(data, 'createdAt')
+        && validTimestamp(data, 'updatedAt');
+    }
+
+    function validSource(data) {
+      return data.keys().hasOnly([
+          'title', 'organisation', 'sourceType', 'category', 'url', 'summary',
+          'state', 'district', 'lastVerified', 'nextReview', 'verificationStatus',
+          'createdAt', 'updatedAt'
+        ])
+        && data.title is string && data.title.size() >= 3 && data.title.size() <= 200
+        && data.organisation is string && data.organisation.size() >= 2 && data.organisation.size() <= 160
+        && data.sourceType in ['official', 'professional', 'educational']
+        && data.category is string && data.category.size() <= 60
+        && data.url is string && data.url.matches('https://.*')
+        && data.summary is string && data.summary.size() >= 5 && data.summary.size() <= 500
+        && (!('state' in data) || data.state is string && data.state.size() <= 60)
+        && (!('district' in data) || data.district is string && data.district.size() <= 60)
+        && data.lastVerified is string && data.nextReview is string
+        && data.verificationStatus in ['verified', 'needs-review', 'seeded-needs-admin-verification']
+        && validTimestamp(data, 'createdAt')
+        && validTimestamp(data, 'updatedAt');
+    }
+
+    function validFaq(data) {
+      return data.keys().hasOnly([
+          'question', 'answer', 'sourceId', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.question is string && data.question.size() > 0 && data.question.size() <= 500
+        && data.answer is string && data.answer.size() > 0 && data.answer.size() <= 6000
+        && data.sourceId is string && data.sourceId.size() > 0
+        && data.status in ['draft', 'published', 'archived']
+        && validTimestamp(data, 'createdAt')
+        && validTimestamp(data, 'updatedAt');
+    }
+
+    function validFeedback(data) {
+      return data.keys().hasOnly(['uid', 'message', 'category', 'createdAt'])
+        && data.uid == request.auth.uid
+        && data.message is string && data.message.size() >= 3 && data.message.size() <= 2000
+        && data.category in ['content', 'bug', 'support', 'other']
+        && data.createdAt is timestamp;
+    }
+
+    match /users/{uid} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validUserProfile(request.resource.data);
+    }
+
+    match /journeys/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validJourney(request.resource.data);
+      allow delete: if isOwner(uid);
+    }
+
+    match /checklists/{uid}/items/{itemId} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validChecklistItem(request.resource.data);
+    }
+
+    match /reminders/{uid}/items/{reminderId} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validReminder(request.resource.data);
+    }
+
+    match /bookmarks/{uid}/resources/{resourceId} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validBookmark(request.resource.data);
+    }
+
+    match /userNotes/{uid}/notes/{noteId} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validNote(request.resource.data);
+    }
+
+    match /knowledgeArticles/{id} {
+      allow read: if resource.data.status == 'published' || isAdmin();
+      allow create, update: if isAdmin() && validArticle(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /officialSources/{id} {
+      allow read: if resource.data.verificationStatus == 'verified' || isAdmin();
+      allow create, update: if isAdmin() && validSource(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /faqs/{id} {
+      allow read: if resource.data.status == 'published' || isAdmin();
+      allow create, update: if isAdmin() && validFaq(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /feedback/{id} {
+      allow create: if signedIn() && validFeedback(request.resource.data);
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /adminAuditLogs/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

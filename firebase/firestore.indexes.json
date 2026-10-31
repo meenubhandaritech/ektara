@@ -1,0 +1,29 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "knowledgeArticles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "officialSources",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sourceType", "order": "ASCENDING" },
+        { "fieldPath": "lastVerified", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "items",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "completed", "order": "ASCENDING" },
+        { "fieldPath": "dueDate", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
