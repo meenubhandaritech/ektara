@@ -117,6 +117,7 @@ export interface AssistantReply {
   answerType: 'official' | 'general' | 'confirmation';
   nextStep: string;
   notice: string;
+  followUps: string[];
 }
 
 export interface PlatformStatus {

@@ -146,6 +146,24 @@ export default function Assistant() {
                     </div>
                   )}
                   <p className="text-xs"><strong>Next step:</strong> {m.reply.nextStep}</p>
+                  {m.reply.followUps.length > 0 && (
+                    <div className="space-y-2 border-t border-beige-200 pt-2">
+                      <p className="text-xs font-semibold text-ink">You could also ask</p>
+                      <div className="flex flex-wrap gap-2">
+                        {m.reply.followUps.map((followUp) => (
+                          <button
+                            key={followUp}
+                            type="button"
+                            className="btn-secondary !rounded-xl !px-2.5 !py-1.5 text-left text-xs"
+                            onClick={() => ask(followUp)}
+                            disabled={busy}
+                          >
+                            {followUp}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <p className="text-xs text-ink-soft">{m.reply.notice}</p>
                 </>
               )}
