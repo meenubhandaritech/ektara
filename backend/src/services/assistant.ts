@@ -21,6 +21,7 @@ export interface AssistantReply {
   answerType: 'official' | 'general' | 'confirmation';
   nextStep: string;
   notice: string;
+  followUps: string[];
 }
 
 const STOP = new Set(['the', 'a', 'an', 'is', 'are', 'what', 'how', 'do', 'i', 'to', 'in', 'of', 'and', 'for', 'can', 'my', 'me', 'does', 'who', 'where', 'it', 'about']);
@@ -38,6 +39,16 @@ function score(q: string[], a: Doc) {
     if (String(a.title).toLowerCase().includes(t)) s += 1;
   }
   return s;
+}
+
+export function followUpsFor(ranked: { a: Doc; s: number }[], question: string): string[] {
+  const normalizedQuestion = question.toLowerCase();
+  return ranked
+    .map(({ a }) => String(a.title).trim())
+    .filter((title, index, titles) => title && titles.indexOf(title) === index)
+    .filter((title) => !normalizedQuestion.includes(title.toLowerCase()))
+    .slice(0, 3)
+    .map((title) => (/[?!]$/.test(title) ? title : `${title}?`));
 }
 
 // Requests the assistant must refuse rather than answer.
@@ -77,7 +88,15 @@ export async function answer(message: string, lang: 'en' | 'hi', route?: string)
   const notice = 'EKTARA Assistant gives general information only. It is not legal advice and not an official authority.';
   const refusal = refusalFor(message);
   if (refusal) {
-    return { answer: refusal, sources: [], mode: 'no-source', answerType: 'confirmation', nextStep: 'Check the official CARA website or ask a qualified professional.', notice };
+    return {
+      answer: refusal,
+      sources: [],
+      mode: 'no-source',
+      answerType: 'confirmation',
+      nextStep: 'Check the official CARA website or ask a qualified professional.',
+      notice,
+      followUps: [],
+    };
   }
 
   const [articles, sources] = await Promise.all([store.list('knowledgeArticles'), store.list('officialSources')]);
@@ -103,6 +122,7 @@ export async function answer(message: string, lang: 'en' | 'hi', route?: string)
       answerType: 'confirmation',
       nextStep: 'Open the official CARA guidance for prospective adoptive parents.',
       notice,
+      followUps: [],
     };
   }
 
@@ -132,6 +152,7 @@ export async function answer(message: string, lang: 'en' | 'hi', route?: string)
       answerType: 'confirmation',
       nextStep: 'Open the official CARA guidance for prospective adoptive parents.',
       notice,
+      followUps: [],
     };
   }
 
@@ -168,5 +189,6 @@ export async function answer(message: string, lang: 'en' | 'hi', route?: string)
         : 'confirmation',
     nextStep: 'Confirm the details on the linked official source before taking any step.',
     notice,
+    followUps: followUpsFor(ranked, message),
   };
 }
